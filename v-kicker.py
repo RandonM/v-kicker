@@ -5,8 +5,9 @@ import sys
 # ---[ CLASSES ] --- #
 
 class Adapter:
-  def __init__(self, name):
+  def __init__(self, name, is_monitor):
     self.name = name
+    self.is_monitor = is_monitor
 
 # ---[ GLOBAL VARIABLES ] --- #
 
@@ -30,6 +31,13 @@ def show_msg(msg):
 def show_question(msg):
     return input("[?]: " + msg + " ")
 
+def has_monitor_adapter():
+    for adapter in adapters:
+        if adapter.is_monitor:
+            return adapter
+    
+    return None
+
 # ---[ STEPS ] --- #
 
 def reset_variables():
@@ -45,6 +53,10 @@ def check_dependencies():
         sys.exit(1)
 
 def find_adapters():
+    show_msg("Searching for adapters.")
+
+    adapters.clear()
+
     cmd = subprocess.run("ifconfig | grep wlan", shell = True, stdout = subprocess.PIPE)
     out = cmd.stdout.decode("utf8")
     # TODO: what happen if out variable contains multiple lines?
@@ -53,7 +65,7 @@ def find_adapters():
     iEnd = out.find(":")
     interface = out[iStart:iEnd - iStart]
 
-    adapter = Adapter(interface)
+    adapter = Adapter(interface, "mon" in out)
 
     adapters.append(adapter)
 
@@ -67,10 +79,14 @@ def show_adapters():
     print("")
 
 def choose_adapter():
-    # TODO: check for int()
-    iAdapter = int(show_question("Which adapter do you want to use?"))
     global choosen_adapter
-    choosen_adapter = adapters[iAdapter]
+
+    if has_monitor_adapter == None:
+        # TODO: check for int()
+        iAdapter = int(show_question("Which adapter do you want to use?"))
+        choosen_adapter = adapters[iAdapter]
+    else:
+        choosen_adapter = has_monitor_adapter()
 
 def airmon_check_kill():
     show_msg("Killing processes that uses " + choosen_adapter.name + " adapter.")
@@ -82,11 +98,14 @@ def airmon_check_kill():
 
 def enable_monitor_mode():
     show_msg("Enabling monitor mode for " + choosen_adapter.name + " adapter.")
-    cmd = subprocess.run("airmon-ng start " + choose_adapter.name, shell = True, stdout = subprocess.PIPE)
+    cmd = subprocess.run("airmon-ng start " + choosen_adapter.name, shell = True, stdout = subprocess.PIPE)
 
     if cmd.returncode != 0:
         show_error("Error while enabling monitor mode.")
         sys.exit(1)
+
+def scan_access_points():
+    show_msg("Scanning access points using " + choosen_adapter.name + " adapter.")
 
 # ---[ MAIN ] --- #
 
@@ -95,7 +114,13 @@ if __name__ == "__main__":
     show_header()
     check_dependencies()
     find_adapters()
-    show_adapters()
+
+    if has_monitor_adapter() == None:
+        show_adapters()
+        choose_adapter()
+        airmon_check_kill()
+        enable_monitor_mode()
+        find_adapters()
+        
     choose_adapter()
-    airmon_check_kill()
-    enable_monitor_mode()
+    scan_access_points()
