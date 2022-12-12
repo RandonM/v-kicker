@@ -1,3 +1,4 @@
+import curses
 import os
 import subprocess
 import sys
@@ -8,6 +9,13 @@ class Adapter:
   def __init__(self, name, is_monitor):
     self.name = name
     self.is_monitor = is_monitor
+
+class Network:
+    def __init__(self, bssid, channel, power, essid):
+        self.bssid = bssid
+        self.channel = channel
+        self.power = power
+        self.essid = essid
 
 # ---[ GLOBAL VARIABLES ] --- #
 
@@ -81,7 +89,7 @@ def show_adapters():
 def choose_adapter():
     global choosen_adapter
 
-    if has_monitor_adapter == None:
+    if has_monitor_adapter() == None:
         # TODO: check for int()
         iAdapter = int(show_question("Which adapter do you want to use?"))
         choosen_adapter = adapters[iAdapter]
@@ -106,6 +114,18 @@ def enable_monitor_mode():
 
 def scan_access_points():
     show_msg("Scanning access points using " + choosen_adapter.name + " adapter.")
+
+    stdscr = curses.initscr()
+    curses.noecho()
+    curses.cbreak()
+
+    # Execute
+    # airodump-ng wlan0mon --write tmp_networks.csv --update 1 --output-format csv --write-interval 1
+    # write output
+
+    curses.echo()
+    curses.nocbreak()
+    curses.endwin()
 
 # ---[ MAIN ] --- #
 
