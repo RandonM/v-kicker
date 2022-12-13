@@ -1,7 +1,10 @@
 import curses
 import os
+import signal
 import subprocess
 import sys
+from threading import Thread
+import time
 
 # ---[ CLASSES ]--- #
 
@@ -19,11 +22,26 @@ class Network:
 
 # ---[ GLOBAL VARIABLES ]--- #
 
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
 # List of Adapter objects
 adapters = []
 
 # Choosen adapter
 choosen_adapter = None
+
+# Network scan thread
+thread_network_scan = None
+cmd_network_scan = None
+
+# Read networks thread
+thread_read_networks = None
+
+# List of Network objects
+networks = []
+
+# Choosen network
+choosen_network = None
 
 # ---[ MANAGEMENT ]--- #
 
@@ -46,10 +64,59 @@ def has_monitor_adapter():
     
     return None
 
+def threaded_network_scan():
+    global cmd_network_scan
+    cmd_network_scan = subprocess.Popen("airodump-ng wlan0mon --write tmp_networks --update 1 --output-format csv --write-interval 1", shell = True)
+    i = 0
+
+def threaded_read_networks():
+    while True:
+        if os.path.exists(os.path.join(__location__, 'tmp_networks-01.csv')) == False:
+            time.sleep(1)
+            continue
+
+        with open(os.path.join(__location__, 'tmp_networks-01.csv')) as file:
+            lines = [line.rstrip() for line in file]
+        
+        i_start = -1
+        i_end = -1
+
+        for i, line in enumerate(lines):
+            if "BSSID" in line and i_start == -1:
+                i_start = i + 1
+            
+            if "Station MAC" in line and i_end == -1:
+                i_end = i - 1
+
+        if i_start < 0 or i_end < 0:
+            show_error("Unable to parse the file")
+            sys.exit(1)
+
+        networks.clear()
+
+        for raw_network in lines[i_start : i_end]:
+            network = raw_network.split(",")
+
+            bssid = network[0].strip()
+            channel = network[3].strip()
+            power = network[8].strip()
+            essid = network[13].strip()
+
+            n = Network(bssid, channel, power, essid)
+            networks.append(n)    
+        
+        time.sleep(1)
+        
+    
 # ---[ STEPS ]--- #
 
 def reset_variables():
+    for fname in os.listdir(__location__):
+        if fname.startswith("tmp_"):
+            os.remove(os.path.join(__location__, fname))
+
     adapters.clear()
+    networks.clear()
 
 def show_header():
     print("==> V-Kicker <==")
@@ -70,6 +137,10 @@ def find_adapters():
     try:
         lines = cmd.stdout.decode("utf8").splitlines()
     except:
+        show_error("Error while getting wlan adapters.")
+        sys.exit(1)
+
+    if len(lines) == 0:
         show_error("No wlan interfaces found.")
         sys.exit(1)
         
@@ -124,17 +195,51 @@ def enable_monitor_mode():
 def scan_access_points():
     show_msg("Scanning access points using " + choosen_adapter.name + " adapter.")
 
+    global thread_network_scan
+    thread_network_scan = Thread(target = threaded_network_scan)
+    thread_network_scan.start()
+
+    global thread_read_networks
+    thread_read_networks = Thread(target = threaded_read_networks)
+    thread_read_networks.start()
+
     stdscr = curses.initscr()
     curses.noecho()
     curses.cbreak()
 
-    # Execute
-    # airodump-ng wlan0mon --write tmp_networks.csv --update 1 --output-format csv --write-interval 1
-    # write output
+    try:
+        while True:
+            stdscr.addstr(0, 0, "[!] Available networks:")
+            stdscr.addstr(1, 0, " ")
 
-    curses.echo()
-    curses.nocbreak()
-    curses.endwin()
+            for i, network in enumerate(networks):
+                stdscr.addstr(i + 2, 0, "==> [" + network.bssid + "] - CH" + network.channel + " - PW" + network.power + " - " + network.essid)
+
+            stdscr.addstr(len(networks) + 2, 0, " ")
+            stdscr.addstr(len(networks) + 3, 0, "[!] Use CTRL + C to stop scanning.")
+
+            stdscr.refresh()
+
+            time.sleep(1)
+    except KeyboardInterrupt:
+        curses.echo()
+        curses.nocbreak()
+        curses.endwin()
+
+        show_msg("Available networks:")
+        print(" ")
+
+        for i, network in enumerate(networks):
+            print(" " + str(i) + ") [" + network.bssid + "] - CH" + network.channel + " - PW" + network.power + " - " + network.essid)
+        
+        print(" ")
+
+        choosen_i_network = show_question("Choose a network:")
+
+        global choosen_network
+        choosen_network = networks[int(choosen_i_network)]
+
+        show_msg("Network " + choosen_network.essid + " choosen")
 
 # ---[ MAIN ]--- #
 
