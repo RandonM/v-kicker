@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 
-# ---[ CLASSES ] --- #
+# ---[ CLASSES ]--- #
 
 class Adapter:
   def __init__(self, name, is_monitor):
@@ -17,7 +17,7 @@ class Network:
         self.power = power
         self.essid = essid
 
-# ---[ GLOBAL VARIABLES ] --- #
+# ---[ GLOBAL VARIABLES ]--- #
 
 # List of Adapter objects
 adapters = []
@@ -25,7 +25,7 @@ adapters = []
 # Choosen adapter
 choosen_adapter = None
 
-# ---[ MANAGEMENT ] --- #
+# ---[ MANAGEMENT ]--- #
 
 def is_root():
     return os.geteuid() == 0
@@ -46,7 +46,7 @@ def has_monitor_adapter():
     
     return None
 
-# ---[ STEPS ] --- #
+# ---[ STEPS ]--- #
 
 def reset_variables():
     adapters.clear()
@@ -56,7 +56,7 @@ def show_header():
     print("")
 
 def check_dependencies():
-    if (is_root == False):
+    if (is_root() == False):
         show_error("Run this script with sudo to continue.")
         sys.exit(1)
 
@@ -66,35 +66,42 @@ def find_adapters():
     adapters.clear()
 
     cmd = subprocess.run("ifconfig | grep wlan", shell = True, stdout = subprocess.PIPE)
-    out = cmd.stdout.decode("utf8")
-    # TODO: what happen if out variable contains multiple lines?
+    
+    try:
+        lines = cmd.stdout.decode("utf8").splitlines()
+    except:
+        show_error("No wlan interfaces found.")
+        sys.exit(1)
+        
+    for line in lines:
+        iStart = line.find("wlan")
+        iEnd = line.find(":")
+        interface = line[iStart:iEnd - iStart]
 
-    iStart = out.find("wlan")
-    iEnd = out.find(":")
-    interface = out[iStart:iEnd - iStart]
-
-    adapter = Adapter(interface, "mon" in out)
-
-    adapters.append(adapter)
-
-def show_adapters():
-    show_msg("Available adapters:")
-    print("")
-
-    for i, adapter in enumerate(adapters):
-        print("[" + str(i) + "] " + adapter.name)
-
-    print("")
+        adapter = Adapter(interface, "mon" in line)
+        adapters.append(adapter)
 
 def choose_adapter():
     global choosen_adapter
 
-    if has_monitor_adapter() == None:
+    if has_monitor_adapter() != None:
+        choosen_adapter = has_monitor_adapter()
+    elif len(adapters) == 1:
+        choosen_adapter = adapters[0]
+    else:
+        show_msg("Available adapters:")
+        print("")
+
+        for i, adapter in enumerate(adapters):
+            print(" " + str(i) + ") " + adapter.name)
+
+        print("")
+
         # TODO: check for int()
         iAdapter = int(show_question("Which adapter do you want to use?"))
         choosen_adapter = adapters[iAdapter]
-    else:
-        choosen_adapter = has_monitor_adapter()
+    
+    show_msg("Adapter " + choosen_adapter.name + " choosen.")
 
 def airmon_check_kill():
     show_msg("Killing processes that uses " + choosen_adapter.name + " adapter.")
@@ -112,6 +119,8 @@ def enable_monitor_mode():
         show_error("Error while enabling monitor mode.")
         sys.exit(1)
 
+    show_msg("Monitor mode enabled for " + choosen_adapter.name + " adapter.")
+
 def scan_access_points():
     show_msg("Scanning access points using " + choosen_adapter.name + " adapter.")
 
@@ -127,7 +136,7 @@ def scan_access_points():
     curses.nocbreak()
     curses.endwin()
 
-# ---[ MAIN ] --- #
+# ---[ MAIN ]--- #
 
 if __name__ == "__main__":
     reset_variables()
@@ -136,7 +145,6 @@ if __name__ == "__main__":
     find_adapters()
 
     if has_monitor_adapter() == None:
-        show_adapters()
         choose_adapter()
         airmon_check_kill()
         enable_monitor_mode()
