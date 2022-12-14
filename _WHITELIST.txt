@@ -1,0 +1,10 @@
+# This is the whitelist.
+# Each row contains a client MAC address.
+# The kicker will kick everybody except for the clients in this file.
+#
+# For example:
+
+00:11:22:33:44:55:66
+77:88:99:AA:BB:CC:DD
+
+# V-Kicker will kick everyone but these two clients with that MAC address.
